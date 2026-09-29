@@ -5,13 +5,13 @@
 **Supplier and contract compliance automation on Google Workspace.**<br>
 Confidence-tiered email matching · human-in-the-loop review · dashboards computed from dates only.
 
-[![CI](https://github.com/Dsergio909/mi-nuevo-proyecto/actions/workflows/ci.yml/badge.svg)](https://github.com/Dsergio909/mi-nuevo-proyecto/actions/workflows/ci.yml)
+[![CI](https://github.com/Dsergio909/supplier-radar/actions/workflows/ci.yml/badge.svg)](https://github.com/Dsergio909/supplier-radar/actions/workflows/ci.yml)
 ![Google Apps Script](https://img.shields.io/badge/Google_Apps_Script-4285F4?logo=google&logoColor=white)
 ![Paid tools: 0](https://img.shields.io/badge/paid_tools-0-39ff88)
 ![Dependencies: 0](https://img.shields.io/badge/dependencies-0-39ff88)
 ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
 
-[**▶ Live demo**](https://dsergio909.github.io/mi-nuevo-proyecto/) · [🇪🇸 Resumen en español](#-resumen-en-español)
+[**▶ Live demo**](https://dsergio909.github.io/supplier-radar/) · [🇪🇸 Resumen en español](#-resumen-en-español)
 
 <img src="docs/screenshot.png" alt="Supplier Radar demo: KPI tiles, an inbox classified by confidence tier and a human review queue" width="100%">
 
@@ -137,7 +137,7 @@ Built by **Sergio García**, an International Business student in Bogotá who li
 - **Archiva los adjuntos** en Drive, en una carpeta por proveedor.
 - **El tablero se calcula solo con fechas**: vencidos, en riesgo, por vencer y al día. No depende de columnas de estado que nadie actualiza.
 
-Todos los datos son ficticios (dominios `.example`). Es la versión pública, con pruebas automáticas, del sistema que construí en mis prácticas en Smart Training Society. No contiene código ni datos de la empresa. [Ver la demo en vivo](https://dsergio909.github.io/mi-nuevo-proyecto/).
+Todos los datos son ficticios (dominios `.example`). Es la versión pública, con pruebas automáticas, del sistema que construí en mis prácticas en Smart Training Society. No contiene código ni datos de la empresa. [Ver la demo en vivo](https://dsergio909.github.io/supplier-radar/).
 
 ## License
 
