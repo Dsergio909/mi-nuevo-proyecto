@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Supplier Radar — demo</title>
+<meta name="description" content="Supplier & contract compliance automation with confidence-tiered email classification and human-in-the-loop review.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg class="logo" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+      <rect x="6" y="1" width="4" height="1" fill="var(--green)"/><rect x="3" y="2" width="3" height="1" fill="var(--green)"/><rect x="10" y="2" width="3" height="1" fill="var(--green)"/>
+      <rect x="2" y="3" width="1" height="3" fill="var(--green)"/><rect x="13" y="3" width="1" height="3" fill="var(--green)"/>
+      <rect x="1" y="6" width="1" height="4" fill="var(--green)"/><rect x="14" y="6" width="1" height="4" fill="var(--green)"/>
+      <rect x="2" y="10" width="1" height="3" fill="var(--green)"/><rect x="13" y="10" width="1" height="3" fill="var(--green)"/>
+      <rect x="3" y="13" width="3" height="1" fill="var(--green)"/><rect x="10" y="13" width="3" height="1" fill="var(--green)"/><rect x="6" y="14" width="4" height="1" fill="var(--green)"/>
+      <rect x="7" y="7" width="2" height="2" fill="var(--blue)"/><rect x="9" y="5" width="1" height="2" fill="var(--blue)"/><rect x="10" y="4" width="1" height="1" fill="var(--blue)"/>
+      <rect x="4" y="9" width="1" height="1" fill="var(--pink)"/><rect x="11" y="10" width="1" height="1" fill="var(--pink)"/>
+    </svg>
+    <div>
+      <h1>SUPPLIER RADAR</h1>
+      <p class="tag" data-i18n="tagline"></p>
+    </div>
+  </div>
+  <div class="lang" role="group" aria-label="Language">
+    <button data-lang="es">ES</button><button data-lang="en">EN</button>
+  </div>
+</header>
+
+<main>
+  <section class="intro panel">
+    <p data-i18n="intro"></p>
+    <label class="clock">
+      <span><span data-i18n="simDate"></span> <strong id="today"></strong></span>
+      <input id="dayOffset" type="range" min="0" max="120" value="0" aria-describedby="clockHint">
+      <small id="clockHint" data-i18n="clockHint"></small>
+    </label>
+  </section>
+
+  <section class="kpis" id="kpis" aria-live="polite"></section>
+
+  <div class="grid">
+    <section class="panel">
+      <div class="panel-head">
+        <h2 data-i18n="inbox"></h2>
+        <div class="actions">
+          <button id="process" class="btn primary" data-i18n="process"></button>
+          <button id="reset" class="btn" data-i18n="reset"></button>
+        </div>
+      </div>
+      <ol id="inbox" class="list"></ol>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2><span data-i18n="review"></span> <span id="reviewCount" class="count"></span></h2>
+      </div>
+      <p class="hint" data-i18n="reviewHint"></p>
+      <ol id="review" class="list"></ol>
+    </section>
+  </div>
+
+  <section class="panel">
+    <div class="panel-head"><h2 data-i18n="suppliers"></h2></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th data-i18n="colSupplier"></th><th data-i18n="colContract"></th><th data-i18n="colStatus"></th>
+          <th data-i18n="colDays"></th><th data-i18n="colDocs"></th><th data-i18n="colReason"></th>
+          <th data-i18n="colManual"></th>
+        </tr></thead>
+        <tbody id="suppliers"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel legend">
+    <h2 data-i18n="howTitle"></h2>
+    <ol class="tiers">
+      <li><span class="chip exact">EXACT</span> <span data-i18n="tierExact"></span></li>
+      <li><span class="chip high">HIGH</span> <span data-i18n="tierHigh"></span></li>
+      <li><span class="chip medium">MEDIUM</span> <span data-i18n="tierMedium"></span></li>
+      <li><span class="chip low">LOW</span> <span data-i18n="tierLow"></span></li>
+    </ol>
+  </section>
+</main>
+
+<footer>
+  <span data-i18n="footer"></span>
+  <a href="https://github.com/Dsergio909/mi-nuevo-proyecto">GitHub ↗</a>
+</footer>
+
+<script src="../src/core/classifier.js"></script>
+<script src="../src/core/compliance.js"></script>
+<script src="../src/core/messages.js"></script>
+<script src="../src/data/sample.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
