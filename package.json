@@ -1,0 +1,12 @@
+{
+  "name": "supplier-radar",
+  "version": "1.0.0",
+  "description": "Supplier & contract compliance automation on Google Workspace, with confidence-tiered email classification and human-in-the-loop review.",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "build:gas": "node scripts/build-gas.js"
+  },
+  "engines": { "node": ">=22" }
+}
