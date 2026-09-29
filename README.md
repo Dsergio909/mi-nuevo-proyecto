@@ -42,6 +42,8 @@ During my internship in purchasing at Smart Training Society I built, on my own 
 
 If two suppliers match at the same top tier, for example two companies of one group sharing a domain, the email goes to review. The system never guesses.
 
+And no match is ever confirmed if Gmail could not authenticate the sender (SPF/DMARC). A forged "From" asking to change a supplier's bank account goes straight to a person, with a warning.
+
 ## Design decisions
 
 - **Precision over recall.** A wrong automatic confirmation silently marks a supplier as compliant. A false "needs review" costs a person ten seconds. So only strong, unique evidence is automated.
@@ -49,6 +51,19 @@ If two suppliers match at the same top tier, for example two companies of one gr
 - **One logic, three runtimes.** `src/core` is plain JavaScript with no dependencies. It is loaded unchanged by Node (tests), the browser (demo) and Google Apps Script (production).
 - **Explainable by design.** Every decision carries structured evidence (`{ code, ...params }`), rendered in Spanish or English for the audit log, the review sheet and the demo.
 - **Zero paid tools.** Only Google Workspace built-ins: no Zapier, no Make, no external APIs.
+
+## Security
+
+| Risk | Mitigation |
+|---|---|
+| Spoofed sender (fake supplier, e.g. bank-account change fraud) | Automatic confirmation requires Gmail's SPF or DMARC `pass`; otherwise the email goes to human review marked "possible spoofing". |
+| Formula injection: an email subject like `=IMPORTXML(...)` running in the sheet | Every email-controlled value is written as plain text. |
+| Duplicate or racing executions (hourly trigger + manual run) | A script lock allows one execution at a time, and each message id is processed only once. |
+| Leaking real data from this public repo | All names, addresses and contracts are fictional. Corporate domains use the reserved `.example` TLD. No company code or data. |
+| Demo page (XSS, third parties) | Content is rendered with `textContent` only; a strict Content-Security-Policy allows scripts from the site itself and fonts from Google Fonts, nothing else. No cookies, trackers or forms. |
+| CI supply chain | Workflows use read-only permissions and do not persist credentials; the project has zero npm dependencies. |
+
+Known limit: the classifier reads text, not attachment contents. Someone who controls a supplier's real mailbox can still send documents, which is why the audit log keeps every decision.
 
 ## Architecture
 
@@ -73,6 +88,7 @@ src/core/compliance.js   date-derived status and KPIs
 src/core/messages.js     human-readable explanations (ES / EN)
 src/data/sample.js       synthetic suppliers and emails
 apps-script/Code.js      Gmail · Sheets · Drive adapter
+apps-script/*.csv        template for the Proveedores sheet
 demo/                    interactive browser demo
 tests/                   unit tests, plus the Apps Script adapter run end-to-end
                          against in-memory fakes of SpreadsheetApp, GmailApp and DriveApp
@@ -90,8 +106,7 @@ To try the demo locally, open `demo/index.html` in a browser.
 
 ### Deploy to Google Apps Script
 
-1. Create a Google Sheet with a tab named `Proveedores` and these headers in row 1:<br>
-   `id | name | domain | emails | contractId | contractEnd | docsRequestedAt | docsReceivedAt | manualStatus`
+1. Create a Google Sheet with a tab named `Proveedores`. Import [`apps-script/Proveedores-plantilla.csv`](apps-script/Proveedores-plantilla.csv) to get the headers, then replace the example rows with your suppliers. Use the status codes `expired`, `at-risk`, `expiring` or `active` in `manualStatus`, or leave it empty.
 2. Run `npm run build:gas`. It copies the core files into `apps-script/`.
 3. In the sheet, open **Extensions → Apps Script** and create one script file per file in `apps-script/`, pasting its contents. If you use [clasp](https://github.com/google/clasp), push that folder instead.
 4. Optional: add a script property `DRIVE_FOLDER_ID` with the id of the Drive folder where documents should be filed.
@@ -117,11 +132,12 @@ Built by **Sergio García**, an International Business student in Bogotá who li
 
 - **Solicita documentos** a los proveedores por correo, con plantilla.
 - **Lee las respuestas** y decide qué proveedor escribió usando **niveles de confianza**: `exact`, `high`, `medium` y `low`.
+- **Detecta suplantaciones.** Si Gmail no puede verificar al remitente (SPF/DMARC), nunca confirma: lo manda a revisión con una alerta.
 - **Confirma solo lo seguro.** Los casos ambiguos, como un nombre parecido o dos proveedores con el mismo dominio, pasan a una **hoja de revisión humana** con la evidencia.
 - **Archiva los adjuntos** en Drive, en una carpeta por proveedor.
 - **El tablero se calcula solo con fechas**: vencidos, en riesgo, por vencer y al día. No depende de columnas de estado que nadie actualiza.
 
-Es la versión pública, con pruebas automáticas y datos sintéticos, del sistema que construí en mis prácticas en Smart Training Society. No contiene código ni datos de la empresa. [Ver la demo en vivo](https://dsergio909.github.io/mi-nuevo-proyecto/).
+Todos los datos son ficticios (dominios `.example`). Es la versión pública, con pruebas automáticas, del sistema que construí en mis prácticas en Smart Training Society. No contiene código ni datos de la empresa. [Ver la demo en vivo](https://dsergio909.github.io/mi-nuevo-proyecto/).
 
 ## License
 

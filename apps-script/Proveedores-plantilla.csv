@@ -1,0 +1,3 @@
+id,name,domain,emails,contractId,contractEnd,docsRequestedAt,docsReceivedAt,manualStatus
+S01,Proveedor Ejemplo SAS,proveedorejemplo.example,compras@proveedorejemplo.example,CT-2026-001,2027-03-31,,,
+S02,Otro Proveedor Ltda,,otroproveedor.demo@gmail.com,CT-2026-002,2026-12-31,,,

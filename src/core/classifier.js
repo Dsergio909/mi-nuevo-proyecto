@@ -100,6 +100,8 @@
 
   /**
    * Classify one email against the supplier list.
+   * Set `email.senderVerified = false` when SPF/DMARC failed: the match is
+   * then sent to review instead of being confirmed.
    *
    * @returns {{decision: 'confirmed'|'review'|'unmatched', tier: string|null,
    *   supplierId: string|null, reason: object|null, evidence: Array,
@@ -133,6 +135,12 @@
       result.decision = 'review';
       result.supplierId = best.supplierId;
       result.reason = { code: 'weak-evidence' };
+      result.evidence = best.evidence;
+    } else if (email.senderVerified === false) {
+      // A forged "From" header must never confirm a supplier (e.g. fake bank-account change).
+      result.decision = 'review';
+      result.supplierId = best.supplierId;
+      result.reason = { code: 'unverified-sender' };
       result.evidence = best.evidence;
     } else {
       result.decision = 'confirmed';

@@ -63,6 +63,10 @@ function requestDocuments() {
  * documents, ambiguous ones go to the review sheet, all are logged.
  */
 function scanInbox() {
+  withLock_(scanInbox_);
+}
+
+function scanInbox_() {
   var table = readSuppliers_();
   var suppliers = table.rows.map(function (r) { return r.supplier; });
   var log = sheet_(CONFIG.LOG_SHEET, LOG_HEADERS);
@@ -83,19 +87,20 @@ function scanInbox() {
         from: message.getFrom(),
         subject: message.getSubject(),
         body: message.getPlainBody().slice(0, 5000),
-        attachments: message.getAttachments().map(function (a) { return a.getName(); })
+        attachments: message.getAttachments().map(function (a) { return a.getName(); }),
+        senderVerified: senderVerified_(message)
       }, suppliers);
       var explanation = Messages.explain(result, CONFIG.LANG);
       var link = thread.getPermalink();
 
-      log.appendRow([message.getDate(), message.getFrom(), message.getSubject(), result.decision,
+      log.appendRow([message.getDate(), safeCell_(message.getFrom()), safeCell_(message.getSubject()), result.decision,
         result.tier || '', result.supplierId || '', explanation, link, asText_(id)]);
 
       if (result.decision === 'confirmed' && result.documentAttached) {
         recordDocuments_(table, result.supplierId, message);
       } else if (result.decision === 'review') {
         var candidates = result.candidates.map(function (c) { return c.supplierId + ' (' + c.tier + ')'; });
-        review.appendRow([message.getDate(), message.getFrom(), message.getSubject(), result.tier, explanation,
+        review.appendRow([message.getDate(), safeCell_(message.getFrom()), safeCell_(message.getSubject()), result.tier, explanation,
           candidates.join(', '), link, asText_(id), '', '']);
       }
       matched = matched || result.decision !== 'unmatched';
@@ -107,6 +112,10 @@ function scanInbox() {
 
 /** Apply the supplier ids a person typed in the review sheet. */
 function applyReviewDecisions() {
+  withLock_(applyReviewDecisions_);
+}
+
+function applyReviewDecisions_() {
   var table = readSuppliers_();
   var review = sheet_(CONFIG.REVIEW_SHEET, REVIEW_HEADERS);
   var values = review.getDataRange().getValues();
@@ -116,6 +125,7 @@ function applyReviewDecisions() {
     applied: REVIEW_HEADERS.length - 1
   };
   var unknown = [];
+  var missing = [];
 
   for (var i = 1; i < values.length; i++) {
     var choice = String(values[i][col.assign] || '').trim();
@@ -130,12 +140,19 @@ function applyReviewDecisions() {
       continue;
     }
     var message = GmailApp.getMessageById(values[i][col.messageId]);
+    if (!message) {
+      missing.push(values[i][col.messageId]); // deleted from Gmail: leave the row pending
+      continue;
+    }
     if (message.getAttachments().length) recordDocuments_(table, choice, message);
     review.getRange(i + 1, col.applied + 1).setValue('asignado ' + formatDate_(now_()));
   }
 
   if (unknown.length) {
     SpreadsheetApp.getActive().toast('Ids de proveedor desconocidos: ' + unknown.join(', '), 'Supplier Radar');
+  }
+  if (missing.length) {
+    SpreadsheetApp.getActive().toast('Correos que ya no existen en Gmail: ' + missing.join(', '), 'Supplier Radar');
   }
   refreshDashboard();
 }
@@ -168,6 +185,35 @@ function installTriggers() {
 }
 
 // ---------- helpers ----------
+
+/** Run `fn` only if no other execution (trigger or manual) is running. */
+function withLock_(fn) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    console.warn('Supplier Radar: otra ejecución sigue en curso; se omite esta.');
+    return;
+  }
+  try {
+    fn();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * True when Gmail authenticated the sender (SPF or DMARC pass). Anyone can
+ * forge a "From" header, so unauthenticated mail is never auto-confirmed.
+ */
+function senderVerified_(message) {
+  var results = message.getHeader('Authentication-Results') || '';
+  return /\b(dmarc|spf)=pass\b/i.test(results);
+}
+
+/** Email text written to Sheets must never run as a formula (=, +, -, @). */
+function safeCell_(value) {
+  var text = String(value || '');
+  return /^[=+\-@\t\r]/.test(text) ? "'" + text : text;
+}
 
 function now_() {
   return new Date();

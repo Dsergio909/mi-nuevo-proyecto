@@ -22,6 +22,7 @@ function cellValue(v) {
 
 function createSheet(name, rows = []) {
   const data = rows.map((r) => r.map(cellValue));
+  const raw = []; // rows exactly as the adapter wrote them, before Sheets' text handling
   const width = () => Math.max(1, ...data.map((r) => r.length));
   const get = (r, c) => {
     const v = (data[r] || [])[c];
@@ -30,8 +31,10 @@ function createSheet(name, rows = []) {
   const sheet = {
     name,
     data,
+    raw,
     getName: () => name,
     appendRow(row) {
+      raw.push(Array.from(row));
       data.push(Array.from(row, cellValue)); // copy into this realm so assertions compare plain arrays
       return sheet;
     },
@@ -63,8 +66,9 @@ function createAttachment(name) {
   return { getName: () => name, copyBlob: () => ({ name }) };
 }
 
-function createMessage({ id, from, subject, body = '', date, attachments = [] }) {
+function createMessage({ id, from, subject, body = '', date, attachments = [], auth = 'mx.google.com; spf=pass' }) {
   return {
+    getHeader: (name) => (name === 'Authentication-Results' ? auth : ''),
     getId: () => id,
     getFrom: () => from,
     getSubject: () => subject,
@@ -115,7 +119,7 @@ function createFolder(name) {
  * @param {{sheets?: Object<string, Array[]>, threads?: Array, me?: string,
  *   properties?: Object, now?: Date}} options
  */
-function loadAdapter({ sheets = {}, threads = [], me = 'compras@miempresa.co', properties = {}, now } = {}) {
+function loadAdapter({ sheets = {}, threads = [], me = 'compras@miempresa.example', properties = {}, now, lockFree = true } = {}) {
   const book = {};
   Object.keys(sheets).forEach((n) => { book[n] = createSheet(n, sheets[n]); });
   const toasts = [];
@@ -140,6 +144,7 @@ function loadAdapter({ sheets = {}, threads = [], me = 'compras@miempresa.co', p
       getMessageById: (id) => threads.flatMap((t) => t.getMessages()).find((m) => m.getId() === id) || null
     },
     DriveApp: { getFolderById: () => driveRoot },
+    LockService: { getScriptLock: () => ({ tryLock: () => lockFree, releaseLock: () => {} }) },
     PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => properties[k] || null }) },
     Session: {
       getEffectiveUser: () => ({ getEmail: () => me }),
